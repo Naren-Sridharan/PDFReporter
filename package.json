@@ -1,0 +1,34 @@
+{
+  "name": "pdfreporter",
+  "version": "0.0.1",
+  "description": "Single web page that creates a PDF report based on Mental Health survey scores ",
+  "main": "index.html",
+  "scripts": {
+    "start": "parcel serve index.html --dist-dir ../prod/pdfreporter/",
+    "build-dev": "parcel build index.html --dist-dir ../../relentless/public_html/dev/pdfreporter/",
+    "build-prod": "parcel build index.html --dist-dir ../../relentless/public_html/prod/pdfreporter/",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "Node.js",
+    "Neverland",
+    "HTML",
+    "CSS",
+    "SCSS",
+    "D3.js"
+  ],
+  "author": "Naren Sridharan",
+  "license": "ISC",
+  "dependencies": {
+    "d3": "^7.0.0",
+    "neverland": "^4.3.3",
+    "pdfmake": "^0.2.0"
+  },
+  "devDependencies": {
+    "@parcel/transformer-sass": "^2.0.0-beta.2",
+    "cssnano": "^5.0.7",
+    "parcel": "^2.0.0-beta.2",
+    "postcss": "^8.3.6",
+    "sass": "^1.37.0"
+  }
+}
