@@ -1,221 +1,107 @@
-var canvasElement = document.getElementById("canvas");
+import pdfMake from "pdfmake/build/pdfmake";
+import pdfFonts from "pdfmake/build/vfs_fonts";
+import { stackedBarChart, table } from "./Charts";
+import * as htmlToPdfmake from "html-to-pdfmake";
 
-export const printPdf = (action) => {
-	var docDefinition = {
-		content: [
-			{
-				alignment: "center",
-				text: "Resilient Youth Australia Survey Report",
-				style: "header",
-				fontSize: 23,
-				bold: true,
-				margin: [0, 10],
-			},
-			{
-				margin: [0, 0, 0, 10],
-				layout: {
-					fillColor: function (rowIndex, node, columnIndex) {
-						return rowIndex % 2 === 0 ? "#ebebeb" : "#f5f5f5";
-					},
-				},
-				table: {
-					widths: ["100%"],
-					heights: [20, 10],
-					body: [
-						[
-							{
-								text: "SETOR: ADMINISTRATIVO",
-								fontSize: 9,
-								bold: true,
-							},
-						],
-						[
-							{
-								text: "FUNÇÃO: DIRETOR DE ENSINO",
-								fontSize: 9,
-								bold: true,
-							},
-						],
-					],
-				},
-			},
-			{
-				style: "tableExample",
-				layout: {
-					fillColor: function (rowIndex, node, columnIndex) {
-						return rowIndex === 0 ? "#c2dec2" : null;
-					},
-				},
-				table: {
-					widths: ["30%", "10%", "25%", "35%"],
-					heights: [10, 10, 10, 10, 30, 10, 25],
-					headerRows: 1,
-					body: [
-						[
-							{
-								text: "AGENTE: Não Identificados",
-								colSpan: 3,
-								bold: true,
-								fontSize: 9,
-							},
-							{},
-							{},
-							{
-								text: "GRUPO: Grupo 1 - Riscos Físicos",
-								fontSize: 9,
-								bold: true,
-							},
-						],
-						[
-							{
-								text: "Limite de Tolerância:",
-								fontSize: 9,
-								bold: true,
-							},
-							{
-								text: "Meio de Propagação:",
-								colSpan: 3,
-								fontSize: 9,
-								bold: true,
-							},
-							{},
-							{},
-						],
-						[
-							{
-								text: [
-									"Frequência: ",
-									{
-										text: "Habitual",
-										bold: false,
-									},
-								],
-								fontSize: 9,
-								bold: true,
-							},
-							{
-								text: [
-									"Classificação do Efeito: ",
-									{
-										text: "Leve",
-										bold: false,
-									},
-								],
-								colSpan: 3,
-								fontSize: 9,
-								bold: true,
-							},
-							{},
-							{},
-						],
-						[
-							{
-								text: "Tempo de Exposição:",
-								colSpan: 2,
-								fontSize: 9,
-								bold: true,
-							},
-							{},
-							{
-								text: "Medição:",
-								colSpan: 2,
-								fontSize: 9,
-								bold: true,
-							},
-							{},
-						],
-						[
-							{
-								text: "Fonte Geradora:",
-								border: [true, true, false, false],
-								colSpan: 2,
-								fontSize: 9,
-								bold: true,
-							},
-							{},
-							{
-								text: "Téc. Utilizada:",
-								border: [false, true, true, false],
-								colSpan: 2,
-								fontSize: 9,
-								bold: true,
-							},
-							{},
-						],
-						[
-							{
-								text: "Conclusão:",
-								border: [true, false, true, true],
-								colSpan: 4,
-								fontSize: 9,
-								bold: true,
-							},
-							{},
-							{},
-							{},
-						],
-						[
-							{
-								text: "EPIs/EPCs:",
-								border: [true, true, false, true],
-								colSpan: 3,
-								fontSize: 9,
-								bold: true,
-							},
-							{},
-							{},
-							{
-								text: "CAs:",
-								border: [false, true, true, true],
-								fontSize: 9,
-								bold: true,
-							},
-						],
-					],
-				},
-			},
-		],
-	};
-
-	if (action === 1) {
-		pdfMake.createPdf(docDefinition).getDataUrl(function (dataURL) {
-			renderPDF(dataURL, document.getElementById("canvas"));
-		});
-	} else if (action === 2) {
-		var pdf = createPdf(docDefinition);
-		pdf.download("PPRA.pdf");
-	}
+pdfMake.vfs = pdfFonts.pdfMake.vfs;
+pdfMake.fonts = {
+	Roboto: {
+		normal: "Roboto-Regular.ttf",
+		bold: "Roboto-Medium.ttf",
+		italics: "Roboto-Italic.ttf",
+		bolditalics: "Roboto-Italic.ttf",
+	},
 };
 
-// * this is not important for PDFMake, it's here just to render the result *
-// It's a Mozilla lib called PDFjs that handles pdf rendering directly on the browser
-export const renderPDF = (url, canvasContainer, options) => {
-	options = options || { scale: 1.4 };
+/**
+ * @desc pdf content
+ * @param {Array} sections
+ * @param {Number} pageWidth Width in inches
+ * @param {Number} pageHeight Width in inches
+ * @return title, pageSize, content, pageMargin
+ * */
+const pdfContent = (sections) => {
+	let content = [];
+	sections.forEach((section, si) => {
+		var table = htmlToPdfmake(section.table);
+		console.log(table);
+		content.push({
+			text: section.heading || `Section ${si + 1}`,
+			fontSize: 20,
+			alignment: "center",
+			margin: [15, 15],
+			// If it is the first section, do not insert a pageBreak.
+			pageBreak: si === 0 ? null : "before",
+		});
+		section.images.forEach((image, j) => {
+			content.push({
+				image,
+				alignment: "center",
+				width: 5 * 0.7,
+				pageBreak: j !== 0 ? "before" : null,
+			});
+		});
+		content.push(table);
+	});
+	return content;
+};
 
-	function renderPage(page) {
-		var viewport = page.getViewport(options.scale);
-		var wrapper = document.createElement("div");
-		wrapper.className = "canvas-wrapper";
-		var canvas = document.createElement("canvas");
-		var ctx = canvas.getContext("2d");
-		var renderContext = {
-			canvasContext: ctx,
-			viewport: viewport,
-		};
+/**
+ * @desc Print pdf for the puzzles
+ * @param {Array} sections
+ * @param {Number} pageWidth Width in inches
+ * @param {Number} pageHeight Width in inches
+ * */
+export const printPdf = async (pages) => {
+	var fs = require("fs");
 
-		canvas.height = viewport.height;
-		canvas.width = viewport.width;
-		wrapper.appendChild(canvas);
-		canvasContainer.appendChild(wrapper);
+	var sections = await Promise.all(
+		pages.map(async (page) =>
+			Promise.all([stackedBarChart(page, true), table(page, true)]).then(
+				(values) => ({
+					heading: `${page} Overview`,
+					images: values[0] ? [values[0]] : [],
+					table: values[1],
+				})
+			)
+		)
+	);
 
-		page.render(renderContext);
-	}
+	var docDefinition = {
+		pageSize: "A4",
+		pageOrientation: "portrait",
+		pageMargins: [40, 60, 40, 60],
+		content: pdfContent(sections),
+		footer: function (currentPage, pageCount, pageSize) {
+			return [
+				{
+					text: "Page " + currentPage.toString(),
+					alignment: currentPage % 2 === 0 ? "left" : "right",
+					style: "normalText",
+					bold: true,
+					margin: [10, 10, 10, 10],
+				},
+				{
+					text: "\u00A9 Resilient Youth Australia Pty Ltd, 2020 (ABN 19 636 065 711). All Rights Reserved.\nConnected, Protected, Respected\u00AE is the Registered Trademark of Resilient Youth Australia Pty Ltd.",
+					alignment: "center",
+					style: "normalText",
+					fontSize: 10,
+					margin: [0, 0, 0, 0],
+				},
+			];
+		},
+		pageBreakBefore: function (
+			currentNode,
+			followingNodesOnPage,
+			nodesOnNextPage,
+			previousNodesOnPage
+		) {
+			return (
+				currentNode.headlineLevel === 1 && followingNodesOnPage.length === 0
+			);
+		},
+	};
 
-	function renderPages(pdfDoc) {
-		for (var num = 1; num <= pdfDoc.numPages; num++)
-			pdfDoc.getPage(num).then(renderPage);
-	}
-
-	PDFJS.disableWorker = true;
-	PDFJS.getDocument(url).then(renderPages);
+	// console.log(docDefinition);
+	pdfMake.createPdf(docDefinition).download(`pdf-${+new Date()}.pdf`);
 };
