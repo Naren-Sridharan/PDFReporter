@@ -2,13 +2,6 @@ import { csv_url, scale_wranglers } from "../constants";
 import * as d3 from "d3";
 import Canvg from "canvg";
 
-// Get the string representation of a DOM node (removes the node)
-function domNodeToString(domNode) {
-	var element = document.createElement("div");
-	element.appendChild(domNode);
-	return element.innerHTML;
-}
-
 function percentages(counts, count = false) {
 	let total = d3.sum(Object.values(counts));
 	let percentage = {};
@@ -21,6 +14,33 @@ function percentages(counts, count = false) {
 		  )
 		: percentage;
 }
+
+const tryFloat = (x) => (parseFloat(x) ? parseFloat(x) : x);
+
+const get_data = (key, table = false) => {
+	return d3.csv(csv_url).then((scores) => {
+		let unique_scores = {};
+
+		Array.from(new Set(scores.map((d) => d[key]))).forEach(
+			(x) => (unique_scores[scale_wranglers[key](tryFloat(x))] = 0)
+		);
+
+		var aggregated_scores = d3.rollup(
+			scores,
+			(v) => v.length,
+			(d) => d.grade,
+			(d) => scale_wranglers[key](tryFloat(d[key]))
+		);
+
+		var data = Array.from(aggregated_scores, (value) => ({
+			...unique_scores,
+			...percentages(Object.fromEntries(value[1]), table),
+			grade: value[0],
+		}));
+
+		return table ? { data } : { unique_scores, data };
+	});
+};
 
 // The table generation function
 function tabulate(data, columns, parent) {
@@ -63,61 +83,19 @@ function tabulate(data, columns, parent) {
 			typeof d.value === "string"
 				? d.value
 				: d.value.length
-				? `${d.value[0]}(${d.value[1]}%)`
+				? `${d.value[0]} (${d.value[1]}%)`
 				: `${d.value}%`
 		);
 
 	return table;
 }
 
-const get_data = (key) => {
-	return d3.csv(csv_url).then((scores) => {
-		if (key == "General") {
-			var aggregated_scores = d3.rollup(
-				scores.filter((s) => {
-					return ["M", "F"].includes(s.gender);
-				}),
-				(v) => v.length,
-				(d) => d.gender,
-				(d) => d.grade
-			);
-
-			var data = Array.from(aggregated_scores, (value) => ({
-				...percentages(Object.fromEntries(value[1]), true),
-				gender: value[0],
-			}));
-
-			return { data };
-		} else {
-			let unique_scores = {};
-			Array.from(new Set(scores.map((d) => d[key]))).forEach(
-				(x) => (unique_scores[scale_wranglers[key](parseFloat(x))] = 0)
-			);
-
-			var aggregated_scores = d3.rollup(
-				scores,
-				(v) => v.length,
-				(d) => d.grade,
-				(d) => scale_wranglers[key](parseFloat(d[key]))
-			);
-
-			var data = Array.from(aggregated_scores, (value) => ({
-				...unique_scores,
-				...percentages(Object.fromEntries(value[1])),
-				grade: value[0],
-			}));
-
-			return { unique_scores, data };
-		}
-	});
-};
-
 export const stackedBarChart = (key, png = false) => {
 	if (!png) {
 		d3.select("svg").remove();
 	}
 
-	if (key === "General") {
+	if (key === "gender") {
 		return;
 	}
 
@@ -168,7 +146,11 @@ export const stackedBarChart = (key, png = false) => {
 		const color = d3
 			.scaleOrdinal()
 			.domain(subgroups)
-			.range(colorscheme[subgroups.length].reverse());
+			.range(
+				key === "cantril"
+					? colorscheme[subgroups.length]
+					: colorscheme[subgroups.length].reverse()
+			);
 
 		//stack the data? --> stack per subgroup
 		const stackedData = d3.stack().keys(subgroups)(data);
@@ -323,7 +305,7 @@ export const table = (key, pdfmake = false) => {
 	}
 
 	// Get the data
-	return get_data(key).then(({ data }) => {
+	return get_data(key, true).then(({ data }) => {
 		var table = tabulate(
 			data,
 			Object.keys(data[0]),

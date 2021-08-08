@@ -2,6 +2,7 @@ import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 import { stackedBarChart, table } from "./Charts";
 import * as htmlToPdfmake from "html-to-pdfmake";
+import { scale_meanings } from "../constants";
 
 pdfMake.vfs = pdfFonts.pdfMake.vfs;
 pdfMake.fonts = {
@@ -13,31 +14,42 @@ pdfMake.fonts = {
 	},
 };
 
-/**
- * @desc pdf content
- * @param {Array} sections
- * @param {Number} pageWidth Width in inches
- * @param {Number} pageHeight Width in inches
- * @return title, pageSize, content, pageMargin
- * */
 const pdfContent = (sections) => {
-	let content = [];
+	const pageSize = { width: 595.28, height: 841.89 };
+	let content = [
+		{
+			text: `Mental Health Survey Report \n
+						 Resilient Youth Australia\n
+						 Date ${new Date().toDateString()}`,
+			fontSize: 20,
+			alignment: "center",
+			margin: [15, 15],
+			pageBreak: "after",
+		},
+	];
 	sections.forEach((section, si) => {
 		var table = htmlToPdfmake(section.table);
-		console.log(table);
+		table[0].alignment = "center";
 		content.push({
-			text: section.heading || `Section ${si + 1}`,
+			text: section.heading,
 			fontSize: 20,
 			alignment: "center",
 			margin: [15, 15],
 			// If it is the first section, do not insert a pageBreak.
 			pageBreak: si === 0 ? null : "before",
 		});
+		content.push({
+			text: section.subheading,
+			fontSize: 12,
+			alignment: "center",
+			margin: [15, 15],
+		});
 		section.images.forEach((image, j) => {
 			content.push({
 				image,
 				alignment: "center",
-				width: 5 * 0.7,
+				width: pageSize.width * 0.8,
+				height: pageSize.height * 0.4,
 				pageBreak: j !== 0 ? "before" : null,
 			});
 		});
@@ -46,12 +58,6 @@ const pdfContent = (sections) => {
 	return content;
 };
 
-/**
- * @desc Print pdf for the puzzles
- * @param {Array} sections
- * @param {Number} pageWidth Width in inches
- * @param {Number} pageHeight Width in inches
- * */
 export const printPdf = async (pages) => {
 	var fs = require("fs");
 
@@ -59,7 +65,8 @@ export const printPdf = async (pages) => {
 		pages.map(async (page) =>
 			Promise.all([stackedBarChart(page, true), table(page, true)]).then(
 				(values) => ({
-					heading: `${page} Overview`,
+					heading: `${page.toUpperCase()} Overview`,
+					subheading: `${scale_meanings[page]}`,
 					images: values[0] ? [values[0]] : [],
 					table: values[1],
 				})
@@ -72,36 +79,25 @@ export const printPdf = async (pages) => {
 		pageOrientation: "portrait",
 		pageMargins: [40, 60, 40, 60],
 		content: pdfContent(sections),
-		footer: function (currentPage, pageCount, pageSize) {
-			return [
-				{
-					text: "Page " + currentPage.toString(),
-					alignment: currentPage % 2 === 0 ? "left" : "right",
-					style: "normalText",
-					bold: true,
-					margin: [10, 10, 10, 10],
-				},
-				{
-					text: "\u00A9 Resilient Youth Australia Pty Ltd, 2020 (ABN 19 636 065 711). All Rights Reserved.\nConnected, Protected, Respected\u00AE is the Registered Trademark of Resilient Youth Australia Pty Ltd.",
-					alignment: "center",
-					style: "normalText",
-					fontSize: 10,
-					margin: [0, 0, 0, 0],
-				},
-			];
-		},
-		pageBreakBefore: function (
-			currentNode,
-			followingNodesOnPage,
-			nodesOnNextPage,
-			previousNodesOnPage
-		) {
-			return (
-				currentNode.headlineLevel === 1 && followingNodesOnPage.length === 0
-			);
-		},
+		footer: (currentPage) => [
+			{
+				text: "Page " + currentPage.toString(),
+				alignment: currentPage % 2 === 0 ? "left" : "right",
+				style: "normalText",
+				bold: true,
+				margin: [10, 10, 10, 10],
+			},
+			{
+				text: "\u00A9 Resilient Youth Australia Pty Ltd, 2020 (ABN 19 636 065 711). All Rights Reserved.\nConnected, Protected, Respected\u00AE is the Registered Trademark of Resilient Youth Australia Pty Ltd.",
+				alignment: "center",
+				style: "normalText",
+				fontSize: 10,
+				margin: [0, 0, 0, 0],
+			},
+		],
+		pageBreakBefore: (currentNode, followingNodesOnPage) =>
+			currentNode.headlineLevel === 1 && followingNodesOnPage.length === 0,
 	};
 
-	// console.log(docDefinition);
 	pdfMake.createPdf(docDefinition).download(`pdf-${+new Date()}.pdf`);
 };
