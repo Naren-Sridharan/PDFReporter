@@ -8,3 +8,7 @@ Created on a work trail with Resilient Youth Australia, the project is aimed at 
 2. open project folder
 3. run npm install
 4. run npm start
+
+## Examples
+
+An example of the PDF generated can be found under the PDF folder.
